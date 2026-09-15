@@ -1,0 +1,8 @@
+[package]
+name = "kanban-bridge"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "kanban-bridge"
+path = "src/main.rs"
