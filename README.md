@@ -59,10 +59,26 @@ cat trello-export.json | kanban-bridge to-md > board.md
   checked card, so this is a naming convention, not a Trello field.
 - Archived lists and cards (`"closed": true` in Trello) are dropped when
   converting to markdown.
+- A due date shows up as `(due <timestamp>)` at the end of the card line:
+
+  ```markdown
+  - [ ] Ship the release notes (due 2026-10-01T00:00:00.000Z)
+  ```
+
+- A card description becomes an indented block right under the card line.
+  Blank lines inside it are kept so multi-paragraph descriptions round-trip:
+
+  ```markdown
+  - [ ] Fix flaky login test
+    Started failing after the auth refactor.
+
+    Repro: run the suite three times in a row.
+  ```
+
 - Converting markdown to Trello JSON fills in only the fields a real Trello
-  export always has (`name`, `lists`, `cards`, `id`, `idList`, `closed`).
-  Fields Trello also writes, like card descriptions, due dates, labels and
-  members, are not read or produced yet.
+  export always has, plus `desc` and `due` when present in the markdown.
+  Labels, members, checklists and other Trello fields are not read or
+  produced yet.
 
 ## License
 
