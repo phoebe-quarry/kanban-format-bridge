@@ -90,10 +90,6 @@ fn trello_to_markdown(input: &str) -> Result<String, String> {
         let list_name = list.get("name").and_then(Json::as_str).unwrap_or("Untitled");
         out.push_str(&format!("## {}\n\n", list_name));
 
-        // Trello has no notion of a checked-off card, so a list named
-        // "Done" (any case) is treated as the finished column.
-        let done_list = list_name.to_lowercase().contains("done");
-
         for card in cards {
             if card.get("closed").and_then(Json::as_bool).unwrap_or(false) {
                 continue;
@@ -103,7 +99,10 @@ fn trello_to_markdown(input: &str) -> Result<String, String> {
             }
             let card_name = card.get("name").and_then(Json::as_str).unwrap_or("Untitled");
             let due = card.get("due").and_then(Json::as_str).filter(|s| !s.is_empty());
-            let mark = if done_list { "x" } else { " " };
+            // dueComplete is the only per-card "finished" flag Trello has, and
+            // it is what the checkbox maps to in both directions.
+            let complete = card.get("dueComplete").and_then(Json::as_bool).unwrap_or(false);
+            let mark = if complete { "x" } else { " " };
             match due {
                 Some(d) => out.push_str(&format!("- [{}] {} (due {})\n", mark, card_name, d)),
                 None => out.push_str(&format!("- [{}] {}\n", mark, card_name)),
@@ -180,10 +179,7 @@ fn markdown_to_trello(input: &str) -> Result<String, String> {
                 board_name = rest.trim().to_string();
                 have_board_name = true;
             }
-        } else if let Some(rest) = line
-            .strip_prefix("- [ ] ")
-            .or_else(|| line.strip_prefix("- [x] "))
-        {
+        } else if let Some((complete, rest)) = split_checkbox(line) {
             let list_id = current_list_id
                 .clone()
                 .ok_or_else(|| "found a card before any list heading ('## ...')".to_string())?;
@@ -194,6 +190,7 @@ fn markdown_to_trello(input: &str) -> Result<String, String> {
                 ("name".to_string(), Json::String(name)),
                 ("idList".to_string(), Json::String(list_id)),
                 ("closed".to_string(), Json::Bool(false)),
+                ("dueComplete".to_string(), Json::Bool(complete)),
             ];
             if let Some(due) = due {
                 fields.push(("due".to_string(), Json::String(due)));
@@ -210,6 +207,20 @@ fn markdown_to_trello(input: &str) -> Result<String, String> {
     ]);
 
     Ok(doc.to_pretty_string() + "\n")
+}
+
+// Returns whether the box is checked along with the text after it. Both "x"
+// and "X" count, since editors differ on which one they write.
+fn split_checkbox(line: &str) -> Option<(bool, &str)> {
+    let rest = line.strip_prefix("- [")?;
+    let mut chars = rest.chars();
+    let complete = match chars.next()? {
+        ' ' => false,
+        'x' | 'X' => true,
+        _ => return None,
+    };
+    let text = chars.as_str().strip_prefix("] ")?;
+    Some((complete, text))
 }
 
 // Card lines can end with "(due <value>)"; the due value is a Trello

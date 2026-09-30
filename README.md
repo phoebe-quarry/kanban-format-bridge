@@ -54,9 +54,10 @@ cat trello-export.json | kanban-bridge to-md > board.md
 
 ## Format notes
 
-- A list named "Done" (case-insensitive) converts to checked boxes; every
-  other list converts to unchecked boxes. Trello itself has no concept of a
-  checked card, so this is a naming convention, not a Trello field.
+- The checkbox maps to the card's `dueComplete` field: `[x]` is
+  `"dueComplete": true`, `[ ]` is false. The list a card sits in has no
+  effect, so cards in a "Done" list are only checked if Trello marked them
+  complete.
 - Archived lists and cards (`"closed": true` in Trello) are dropped when
   converting to markdown.
 - A due date shows up as `(due <timestamp>)` at the end of the card line:
